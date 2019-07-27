@@ -1,0 +1,21 @@
+{
+  "name": "Valve Box",
+  "device_id": "valvebox_01",
+  "device_stats_interval": 10,
+  "wifi": {
+    "ssid": "wifi_network",
+    "password": "my pass"
+  },
+  "mqtt": {
+    "host": "192.168.55.66",
+    "port": 1883,
+    "base_topic": "devices/",
+    "auth": false
+  },
+  "ota": {
+    "enabled": true
+  },
+  "settings": {
+    "percentage": 55
+  }
+}

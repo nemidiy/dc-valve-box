@@ -52,7 +52,7 @@ bool TwoWireValveController::add_valve(
     Serial.println(os.str().c_str());
     valves.insert(std::make_pair(name, conf));
 
-    HomieNode* valve_node = new HomieNode(name.c_str(), "switch");
+    HomieNode* valve_node = new HomieNode(name.c_str(), "valve");
     nodes.insert(make_pair(name, valve_node));
 
     auto handler = [conf, this, valve_node](
@@ -75,6 +75,7 @@ bool TwoWireValveController::add_valve(
         Serial.print("\t-> ");
         Serial.print(conf->pin_a_state);
         Serial.println(conf->pin_b_state);
+        conf->open = on;
         bool res = this->set_status(
             conf->valve_file.c_str(), conf->pin_a_state, conf->pin_b_state, on);
         digitalWrite(conf->pin_a, conf->pin_a_state);
@@ -88,6 +89,7 @@ bool TwoWireValveController::add_valve(
     std::ostringstream fn;
     fn << "VALVE " << name;
     //check if we have status files or not.
+
     if(SPIFFS.exists(conf->valve_file.c_str())){
       // we have status for valve A
       get_status(conf->valve_file.c_str(), conf->pin_a_state, conf->pin_b_state, conf->open);
@@ -107,12 +109,10 @@ bool TwoWireValveController::add_valve(
 
     digitalWrite(conf->pin_a, conf->pin_a_state);
     digitalWrite(conf->pin_b, conf->pin_b_state);
-
     return true;
 }
 
 void TwoWireValveController::loop(){
-
     for (auto& kv: valves){
         auto conf = kv.second;
         uint8_t toggle_state = digitalRead(conf->pin_toggle);
@@ -131,6 +131,17 @@ void TwoWireValveController::loop(){
           digitalWrite(conf->pin_b, conf->pin_b_state);
           set_status(conf->valve_file.c_str(), conf->pin_a_state, conf->pin_b_state, true);
         }
+    }
+    // advertise status
+    if (millis() - this->last_sent >= this->INTERVAL * 1000UL
+            || this->last_sent == 0) {
+        for(auto& kv: nodes){
+            String status = "false";
+            if(valves[kv.first]->open)
+                status = "true";
+            kv.second->setProperty("open").send(status);
+        }
+        this->last_sent = millis();
     }
 }
 

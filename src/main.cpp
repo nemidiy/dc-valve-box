@@ -42,7 +42,7 @@ void setup() {
 
   Serial.begin(115200);
   Serial << endl << endl;
-  
+
   SPIFFS.begin();
 
   valve_controller.begin("valve-box","1.0.0");
@@ -67,7 +67,7 @@ void setup() {
 
   WiFi.begin(
       HomieInternals::Interface::get().getConfig().get().wifi.ssid,
-      HomieInternals::Interface::get().getConfig().get().wifi.password);  
+      HomieInternals::Interface::get().getConfig().get().wifi.password);
 }
 
 void loop() {

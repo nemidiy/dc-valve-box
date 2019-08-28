@@ -64,6 +64,9 @@ protected :
 
     std::map<std::string, HomieNode*> nodes;
     std::map<std::string, valve_config*> valves;
+
+    unsigned long int last_sent = 0;
+    unsigned long int INTERVAL = 10;
 };
 
 } // namespace utils

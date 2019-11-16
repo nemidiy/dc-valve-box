@@ -52,8 +52,8 @@ bool TwoWireValveController::add_valve(
     Serial.println(os.str().c_str());
     valves.insert(std::make_pair(name, conf));
 
-    HomieNode* valve_node = new HomieNode(name.c_str(), "valve");
-    nodes.insert(make_pair(name, valve_node));
+    HomieNode* valve_node = new HomieNode(name.c_str(), "valve", name.c_str());
+    valve_nodes.insert(make_pair(name, valve_node));
 
     auto handler = [conf, this, valve_node](
             const HomieRange& range, const String& value) -> bool{
@@ -112,6 +112,28 @@ bool TwoWireValveController::add_valve(
     return true;
 }
 
+bool TwoWireValveController::add_float_switch(
+            uint8_t pin,
+            const std::string& name){
+    pinMode(pin, INPUT);
+
+    auto conf = new switch_config;
+    conf->pin = pin;
+    conf->on = false;
+    if(digitalRead(conf->pin) == HIGH)
+        conf->on = true;
+
+    float_switches.insert(std::make_pair(name, conf));
+
+    HomieNode* switch_node = new HomieNode(name.c_str(), "switch", name.c_str());
+    switch_nodes.insert(make_pair(name, switch_node));
+
+    switch_node->advertise("on");
+    switch_node->setProperty("on").send(bool_to_string(conf->on));
+
+    return true;
+}
+
 void TwoWireValveController::loop(){
     for (auto& kv: valves){
         auto conf = kv.second;
@@ -132,14 +154,32 @@ void TwoWireValveController::loop(){
           set_status(conf->valve_file.c_str(), conf->pin_a_state, conf->pin_b_state, true);
         }
     }
+
+    for (auto& kv: float_switches){
+        auto conf = kv.second;
+        bool state = false;
+        if(digitalRead(conf->pin) == HIGH)
+            state = true;
+        if(state != conf->on){
+            conf->on = state;
+            switch_nodes[kv.first]->setProperty("on").send(bool_to_string(conf->on));
+        }
+    }
+
     // advertise status
     if (millis() - this->last_sent >= this->INTERVAL * 1000UL
             || this->last_sent == 0) {
-        for(auto& kv: nodes){
+        for(auto& kv: valve_nodes){
             String status = "false";
             if(valves[kv.first]->open)
                 status = "true";
             kv.second->setProperty("open").send(status);
+        }
+        for(auto& kv: switch_nodes){
+            String status = "false";
+            if(float_switches[kv.first]->on)
+                status = "true";
+            kv.second->setProperty("on").send(status);
         }
         this->last_sent = millis();
     }
@@ -212,4 +252,10 @@ std::string TwoWireValveController::state_to_char(int state){
     if(state == HIGH)
         return "1";
     return "0";
+}
+
+String TwoWireValveController::bool_to_string(bool state){
+    if(state)
+        return "true";
+    return "false";
 }

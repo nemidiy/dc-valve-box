@@ -40,6 +40,10 @@ struct TwoWireValveController {
         uint8_t pin_toggle,
         const std::string& name);
 
+    bool add_float_switch(
+            uint8_t pin,
+            const std::string& name);
+
     void loop();
 
 protected :
@@ -49,6 +53,8 @@ protected :
     bool set_status(const char* fname, uint8_t pin_a, uint8_t pin_b, bool open);
 
     static std::string state_to_char(int state);
+
+    static String bool_to_string(bool state);
 
     typedef struct {
         uint8_t pin_a; //id of pin a
@@ -62,8 +68,16 @@ protected :
         unsigned long int switch_time; // time when toggle button was pressed
     } valve_config;
 
-    std::map<std::string, HomieNode*> nodes;
+    std::map<std::string, HomieNode*> valve_nodes;
     std::map<std::string, valve_config*> valves;
+
+    typedef struct {
+        uint8_t pin;
+        bool on;
+    } switch_config;
+
+    std::map<std::string, HomieNode*> switch_nodes;
+    std::map<std::string, switch_config*> float_switches;
 
     unsigned long int last_sent = 0;
     unsigned long int INTERVAL = 10;

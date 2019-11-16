@@ -49,17 +49,25 @@ void setup() {
 
   Homie.onEvent(on_event);
 
+#ifdef ENABLE_VALVE_A
   valve_controller.add_valve(
         IN1,
         IN2,
         TOGGLE_A,
         "A");
+#endif
 
+#ifdef ENABLE_VALVE_B
   valve_controller.add_valve(
         IN3,
         IN4,
         TOGGLE_B,
         "B");
+#endif
+
+#ifdef ENABLE_FLOAT
+  valve_controller.add_float_switch(D5, "float");
+#endif
 
   Homie.onEvent(on_event);
 
@@ -74,5 +82,5 @@ void loop() {
   Homie.loop();
   ip = WiFi.localIP().toString().c_str();
   valve_controller.loop();
-  delay(10);
+  delay(5);
 }

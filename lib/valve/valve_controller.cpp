@@ -16,6 +16,9 @@ limitations under the License.
 
 #include "valve_controller.h"
 #include <sstream>
+#ifdef ENABLE_ATLAS_FLOW
+#include <device_manager.h>
+#endif
 
 using namespace dc::utils;
 
@@ -51,8 +54,11 @@ bool TwoWireValveController::add_valve(
     Serial.print("valve conf file : ");
     Serial.println(os.str().c_str());
     valves.insert(std::make_pair(name, conf));
-
+#ifdef HOMIE_V3
     HomieNode* valve_node = new HomieNode(name.c_str(), "valve", name.c_str());
+#else
+    HomieNode* valve_node = new HomieNode(name.c_str(), "valve");
+#endif
     valve_nodes.insert(make_pair(name, valve_node));
 
     auto handler = [conf, this, valve_node](
@@ -125,7 +131,12 @@ bool TwoWireValveController::add_float_switch(
 
     float_switches.insert(std::make_pair(name, conf));
 
+#ifdef HOMIE_V3
     HomieNode* switch_node = new HomieNode(name.c_str(), "switch", name.c_str());
+#else
+    HomieNode* switch_node = new HomieNode(name.c_str(), "switch");
+#endif
+
     switch_nodes.insert(make_pair(name, switch_node));
 
     switch_node->advertise("on");
@@ -133,6 +144,31 @@ bool TwoWireValveController::add_float_switch(
 
     return true;
 }
+
+#ifdef ENABLE_ATLAS_FLOW
+
+bool TwoWireValveController::add_flow_totalizer(
+            dc::atlas::Device* dev,
+            const std::string& name){
+
+#ifdef HOMIE_V3
+    HomieNode* flow_node = new HomieNode(name.c_str(), "flow", name.c_str());
+#else
+    HomieNode* flow_node = new HomieNode(name.c_str(), "flow");
+#endif
+
+    auto handler = [dev, this](
+            const HomieRange& range, const String& value) -> bool {
+    };
+    flow_nodes.insert(make_pair(name, flow_node));
+
+    flow_node->setProperty("unit").send("litres");
+    flow_node->advertise("litres");
+    flow_node->advertise("clear").settable(handler);
+    return true;
+}
+
+#endif
 
 void TwoWireValveController::loop(){
     for (auto& kv: valves){
@@ -166,6 +202,7 @@ void TwoWireValveController::loop(){
         }
     }
 
+
     // advertise status
     if (millis() - this->last_sent >= this->INTERVAL * 1000UL
             || this->last_sent == 0) {
@@ -182,6 +219,14 @@ void TwoWireValveController::loop(){
             kv.second->setProperty("on").send(status);
         }
         this->last_sent = millis();
+
+#ifdef ENABLE_ATLAS_FLOW
+        for (auto& kv: flow_nodes){
+            auto dm = dc::atlas::DeviceManager::get_instance();
+            auto value = dm->get_device_value(dc::atlas::Device::FLOW_SENSOR);
+            kv.second->setProperty("litres").send(String(value));
+        }
+#endif
     }
 }
 

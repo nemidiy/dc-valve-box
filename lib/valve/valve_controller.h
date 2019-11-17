@@ -21,6 +21,7 @@ limitations under the License.
 #include <Homie.h>
 #include <map>
 #include <string>
+#include <device.h>
 
 namespace dc {
 
@@ -43,6 +44,13 @@ struct TwoWireValveController {
     bool add_float_switch(
             uint8_t pin,
             const std::string& name);
+
+#ifdef ENABLE_ATLAS_FLOW
+
+    bool add_flow_totalizer(
+            dc::atlas::Device* dev,
+            const std::string& name);
+#endif
 
     void loop();
 
@@ -78,6 +86,8 @@ protected :
 
     std::map<std::string, HomieNode*> switch_nodes;
     std::map<std::string, switch_config*> float_switches;
+
+    std::map<std::string, HomieNode*> flow_nodes;
 
     unsigned long int last_sent = 0;
     unsigned long int INTERVAL = 10;

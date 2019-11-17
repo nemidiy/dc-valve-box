@@ -23,6 +23,12 @@ limitations under the License.
 #include <valve_controller.h>
 #include <homie_handler.h>
 
+#ifdef ENABLE_ATLAS_FLOW
+#include <Wire.h>
+#include <device.h>
+#include <device_manager.h>
+#endif
+
 #define IN1 D1
 #define IN2 D2
 
@@ -38,10 +44,31 @@ std::string ip;
 // valve controller
 dc::utils::TwoWireValveController valve_controller;
 
+#ifdef ENABLE_ATLAS_FLOW
+// Device manager
+dc::atlas::DeviceManager device_manager;
+dc::atlas::DeviceManager* dm = &device_manager;
+dc::atlas::DeviceManager* t = dc::atlas::DeviceManager::get_instance(dm);
+#endif
+
+void loopHandler() {
+  valve_controller.loop();
+#ifdef ENABLE_ATLAS_FLOW
+  device_manager.loop();
+#endif
+}
+
 void setup() {
 
   Serial.begin(115200);
   Serial << endl << endl;
+
+#ifdef ENABLE_ATLAS_FLOW
+  //enable I2C port.
+  Wire.begin();
+  //auto discovery
+  device_manager.auto_discovery();
+#endif
 
   SPIFFS.begin();
 
@@ -69,6 +96,14 @@ void setup() {
   valve_controller.add_float_switch(D5, "float");
 #endif
 
+#ifdef ENABLE_ATLAS_FLOW
+  valve_controller.add_flow_totalizer(
+      device_manager.get_all_devs()[dc::atlas::Device::FLOW_SENSOR],
+      "flow");
+#endif
+
+  Homie.setLoopFunction(loopHandler);
+
   Homie.onEvent(on_event);
 
   Homie.setup();
@@ -78,9 +113,39 @@ void setup() {
       HomieInternals::Interface::get().getConfig().get().wifi.password);
 }
 
-void loop() {
+void loop(){
   Homie.loop();
-  ip = WiFi.localIP().toString().c_str();
-  valve_controller.loop();
-  delay(5);
+  delay(100);
 }
+
+/*
+    Wire.beginTransmission(104);
+    Wire.write("R\0");
+    Wire.endTransmission();
+    delay(500);
+    Wire.requestFrom(104, 20, 1);
+    //the first byte is the response code, we read this separately.
+    byte code = Wire.read();
+    char buffer[20];
+    if(code == 1){
+      Serial.println("Success");
+      byte i = 0;
+      while (Wire.available()) {
+        buffer[i] = Wire.read();
+        if (buffer[i] == 0){
+          Wire.endTransmission();
+          break;
+        }
+        ++i;
+      }
+      Serial.print("Response : ");
+      Serial.println(buffer);
+    }else if (code == 2){
+      Serial.println("Failure");
+    }else if (code == 254){
+      Serial.println("Not finished");
+    }else if (code == 255){
+      Serial.println("No data");
+    }
+  delay(1000);
+*/

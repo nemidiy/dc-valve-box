@@ -27,6 +27,7 @@ limitations under the License.
 #include <Wire.h>
 #include <device.h>
 #include <device_manager.h>
+#define FLOW_SENSOR_I2C_ADDR 95
 #endif
 
 #define IN1 D1
@@ -66,8 +67,13 @@ void setup() {
 #ifdef ENABLE_ATLAS_FLOW
   //enable I2C port.
   Wire.begin();
-  //auto discovery
-  device_manager.auto_discovery();
+
+  //create the Device
+  dc::atlas::Device* dev =
+    new dc::atlas::Device(
+        FLOW_SENSOR_I2C_ADDR, dc::atlas::Device::FLOW_SENSOR);
+  //add to the device manager
+  device_manager.add_device(dev, "flow");
 #endif
 
   SPIFFS.begin();
@@ -97,9 +103,7 @@ void setup() {
 #endif
 
 #ifdef ENABLE_ATLAS_FLOW
-  valve_controller.add_flow_totalizer(
-      device_manager.get_all_devs()[dc::atlas::Device::FLOW_SENSOR],
-      "flow");
+  valve_controller.add_flow_totalizer(dev, "flow");
 #endif
 
   Homie.setLoopFunction(loopHandler);
@@ -115,37 +119,4 @@ void setup() {
 
 void loop(){
   Homie.loop();
-  delay(100);
 }
-
-/*
-    Wire.beginTransmission(104);
-    Wire.write("R\0");
-    Wire.endTransmission();
-    delay(500);
-    Wire.requestFrom(104, 20, 1);
-    //the first byte is the response code, we read this separately.
-    byte code = Wire.read();
-    char buffer[20];
-    if(code == 1){
-      Serial.println("Success");
-      byte i = 0;
-      while (Wire.available()) {
-        buffer[i] = Wire.read();
-        if (buffer[i] == 0){
-          Wire.endTransmission();
-          break;
-        }
-        ++i;
-      }
-      Serial.print("Response : ");
-      Serial.println(buffer);
-    }else if (code == 2){
-      Serial.println("Failure");
-    }else if (code == 254){
-      Serial.println("Not finished");
-    }else if (code == 255){
-      Serial.println("No data");
-    }
-  delay(1000);
-*/

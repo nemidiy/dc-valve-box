@@ -21,6 +21,7 @@ limitations under the License.
 #endif
 
 using namespace dc::utils;
+using namespace dc::atlas;
 
 TwoWireValveController::TwoWireValveController(){
 }
@@ -157,9 +158,45 @@ bool TwoWireValveController::add_flow_totalizer(
     HomieNode* flow_node = new HomieNode(name.c_str(), "flow");
 #endif
 
-    auto handler = [dev, this](
+    // define the homie handler for the MQTT message
+    auto handler = [dev, flow_node, name, this](
             const HomieRange& range, const String& value) -> bool {
+
+        // define the clear command callback
+        DeviceManager::response_callback clear_handler = [](
+                Device* dev,
+                DeviceResponse::i2c_response_code code,
+                char* buffer,
+                unsigned int buffer_size) -> void*{
+            // do nothing, it's just a clear
+            return NULL;
+        };
+
+        // schedule the clear command ASAP
+        auto dm = DeviceManager::get_instance();
+        dm->schedule_command(
+                "Clear",                      //clear command
+                name,                         //name of the device
+                DeviceManager::null_callback, // hanlder the clear response
+                0,                            // execute as soon as possible
+                900);                         // wait 900 for the response
+
+        flow_node->setProperty("clear").send("false");
+        return true;
     };
+
+    Homie.getLogger() << "scheduling read for " << name.c_str() << endl;
+    // schedule the read command
+    auto dm = DeviceManager::get_instance();
+    dm->schedule_command(
+                "R",                                 //clear command
+                name,                                //name of the device
+                DeviceManager::read_double_callback, // hanlder the clear response
+                0,                                   // execute as soon as possible
+                900,                                 // wait 900 for the response
+                1000);                               // re-schedule to every 1 sec
+
+    // save the flow node
     flow_nodes.insert(make_pair(name, flow_node));
 
     flow_node->setProperty("unit").send("litres");
@@ -168,7 +205,7 @@ bool TwoWireValveController::add_flow_totalizer(
     return true;
 }
 
-#endif
+#endif // ENABLE_ATLAS_FLOW
 
 void TwoWireValveController::loop(){
     for (auto& kv: valves){
@@ -223,7 +260,7 @@ void TwoWireValveController::loop(){
 #ifdef ENABLE_ATLAS_FLOW
         for (auto& kv: flow_nodes){
             auto dm = dc::atlas::DeviceManager::get_instance();
-            auto value = dm->get_device_value(dc::atlas::Device::FLOW_SENSOR);
+            auto value = dm->get_device_value_double(kv.first);
             kv.second->setProperty("litres").send(String(value));
         }
 #endif
